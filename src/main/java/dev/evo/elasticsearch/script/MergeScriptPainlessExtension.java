@@ -15,6 +15,5 @@ public class MergeScriptPainlessExtension implements PainlessExtension {
     @Override
     public Map<ScriptContext<?>, List<Whitelist>> getContextWhitelists() {
         return Map.of(MergeScript.CONTEXT, List.of(WHITELIST));
-        // throw new IllegalStateException();
     }
 }
