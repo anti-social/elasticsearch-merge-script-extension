@@ -1,1 +1,1 @@
-rootProject.name = "grouping-mixup-rescorer"
+rootProject.name = "merge-script"

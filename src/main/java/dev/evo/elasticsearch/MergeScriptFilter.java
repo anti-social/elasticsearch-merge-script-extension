@@ -1,0 +1,163 @@
+package dev.evo.elasticsearch;
+
+import dev.evo.elasticsearch.script.MergeScript;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.search.SearchAction;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.ActionFilter;
+import org.elasticsearch.action.support.ActionFilterChain;
+import org.elasticsearch.common.settings.Setting;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.aggregations.InternalAggregations;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.internal.InternalSearchResponse;
+import org.elasticsearch.search.profile.SearchProfileShardResults;
+import org.elasticsearch.tasks.Task;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class MergeScriptFilter implements ActionFilter {
+    private static final int DEFAULT_SIZE = 10;
+
+    private static final int DEFAULT_ORDER = 30;
+    public static final Setting<Integer> FILTER_ORDER = Setting.intSetting(
+        "merge.script.filter.order", DEFAULT_ORDER, Setting.Property.NodeScope
+    );
+
+    private final ScriptService scriptService;
+    private final int order;
+
+    public MergeScriptFilter(Settings settings, ScriptService scriptService) {
+        this.scriptService = scriptService;
+        this.order = FILTER_ORDER.get(settings);
+    }
+
+    @Override
+    public int order() {
+        return order;
+    }
+
+    @Override
+    public <Request extends ActionRequest, Response extends ActionResponse> void apply(
+        Task task,
+        String action,
+        Request request,
+        ActionListener<Response> listener,
+        ActionFilterChain<Request, Response> chain
+    ) {
+        if (!SearchAction.INSTANCE.name().equals(action)) {
+            chain.proceed(task, action, request, listener);
+            return;
+        }
+
+        final var searchRequest = (SearchRequest) request;
+        var source = searchRequest.source();
+        if (source == null) {
+            source = SearchSourceBuilder.searchSource();
+        }
+        final var origSize = source.size();
+        if (origSize == 0) {
+            chain.proceed(task, action, request, listener);
+            return;
+        }
+        final var size = origSize < 0 ? DEFAULT_SIZE : origSize;
+        final var from = Math.max(source.from(), 0);
+
+        final var searchExtensions = source.ext();
+        final var searchExt = searchExtensions.stream()
+            .filter(ext -> ext.getWriteableName().equals(MergeScriptExtBuilder.NAME))
+            .findFirst();
+        if (searchExt.isEmpty()) {
+            chain.proceed(task, action, request, listener);
+            return;
+        }
+
+        final var mixupExt = (MergeScriptExtBuilder) searchExt.get();
+        final var script = mixupExt.mergeScript();
+        MergeScript.Factory mergeScriptFactory = scriptService.compile(
+            script.script,
+            MergeScript.CONTEXT
+        );
+        MergeScript mergeScript = mergeScriptFactory.newInstance(
+            script.script.getParams()
+        );
+
+        source.from(0);
+        source.size(Math.max(mixupExt.windowSize(), from + size));
+        if (script.fields != null) {
+            for (var scriptField : script.fields) {
+                source.docValueField(scriptField);
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        final ActionListener<Response> rescoreListener = ActionListener.map(listener, (response) -> {
+            final var resp = (SearchResponse) response;
+            final var searchHits = resp.getHits();
+            final var hits = searchHits.getHits();
+            if (hits.length == 0) {
+                return response;
+            }
+
+            final var respHits = mergeScript.execute(hits);
+
+            // final var logger = org.apache.logging.log4j.LogManager.getLogger();
+            // logger.info("hit count={}", searchHits.getTotalHits());
+            // for (var hitLookup : respHitLookups) {
+            //     final var hit = hitLookup.hit();
+            //     logger.info("id={}", hit.getId());
+            // }
+
+            return (Response) responseWithHits(
+                resp,
+                mixupExt.pagination() ? paginate(respHits, from, size) : respHits
+            );
+
+        });
+
+        chain.proceed(task, action, request, rescoreListener);
+    }
+
+    private SearchHit[] paginate(SearchHit[] hits, int from, int size) {
+        final var logger = org.apache.logging.log4j.LogManager.getLogger();
+        logger.info("================= {} - {}", from, size);
+        return from < hits.length ?
+            Arrays.copyOfRange(hits, from, Math.min(from + size, hits.length)) :
+            new SearchHit[0];
+    }
+
+    private SearchResponse responseWithHits(
+        SearchResponse response, SearchHit[] hits
+    ) {
+        final var searchHits = response.getHits();
+        final var pageResponse = new InternalSearchResponse(
+            new SearchHits(hits, searchHits.getTotalHits(), searchHits.getMaxScore()),
+            (InternalAggregations) response.getAggregations(),
+            response.getSuggest(),
+            new SearchProfileShardResults(response.getProfileResults()),
+            response.isTimedOut(),
+            response.isTerminatedEarly(),
+            response.getNumReducePhases()
+        );
+        return new SearchResponse(
+            pageResponse,
+            response.getScrollId(),
+            response.getTotalShards(),
+            response.getSuccessfulShards(),
+            response.getSkippedShards(),
+            response.getTook().millis(),
+            response.getShardFailures(),
+            response.getClusters()
+        );
+    }
+}

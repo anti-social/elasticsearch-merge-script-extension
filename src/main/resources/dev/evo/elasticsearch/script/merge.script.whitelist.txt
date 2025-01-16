@@ -1,0 +1,12 @@
+class org.elasticsearch.common.document.DocumentField {
+    String getName()
+    Object getValue()
+    List getValues()
+}
+
+class org.elasticsearch.search.SearchHit {
+    String getId()
+    float getScore()
+    DocumentField field(String)
+    java.util.Map getFields()
+}
