@@ -90,8 +90,8 @@ public class MergeScriptExtFilterIT extends ESIntegTestCase {
                         List commonHits = new ArrayList();
                         List turboHits = new ArrayList();
                         for (SearchHit hit : hits) {
-                            def isTurbo = (Boolean) hit.field("is_turbo").value;
-                            if (isTurbo != null && isTurbo) {
+                            def isTurbo = hit.field("is_turbo").booleanValueOrDefault(false);
+                            if (isTurbo) {
                                 turboHits.add(hit);
                             } else {
                                 commonHits.add(hit);
