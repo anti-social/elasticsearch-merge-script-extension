@@ -8,7 +8,7 @@ plugins {
 }
 
 configure<org.elasticsearch.gradle.plugin.PluginPropertiesExtension> {
-    name = "rescore-grouping-mixup"
+    name = "merge-script"
     description = "Adds rescorer for mixing up search hits inside their groups."
     classname = "dev.evo.elasticsearch.plugin.MergeScriptPlugin"
     version = Versions.plugin

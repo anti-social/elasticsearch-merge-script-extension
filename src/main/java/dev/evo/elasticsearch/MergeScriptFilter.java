@@ -82,8 +82,8 @@ public class MergeScriptFilter implements ActionFilter {
             return;
         }
 
-        final var mixupExt = (MergeScriptExtBuilder) searchExt.get();
-        final var script = mixupExt.mergeScript();
+        final var ext = (MergeScriptExtBuilder) searchExt.get();
+        final var script = ext.mergeScript();
         MergeScript.Factory mergeScriptFactory = scriptService.compile(
             script.script,
             MergeScript.CONTEXT
@@ -93,7 +93,7 @@ public class MergeScriptFilter implements ActionFilter {
         );
 
         source.from(0);
-        source.size(Math.max(mixupExt.windowSize(), from + size));
+        source.size(Math.max(ext.windowSize(), from + size));
         if (script.fields != null) {
             for (var scriptField : script.fields) {
                 source.docValueField(scriptField);
@@ -111,16 +111,9 @@ public class MergeScriptFilter implements ActionFilter {
 
             final var respHits = mergeScript.execute(hits);
 
-            // final var logger = org.apache.logging.log4j.LogManager.getLogger();
-            // logger.info("hit count={}", searchHits.getTotalHits());
-            // for (var hitLookup : respHitLookups) {
-            //     final var hit = hitLookup.hit();
-            //     logger.info("id={}", hit.getId());
-            // }
-
             return (Response) responseWithHits(
                 resp,
-                mixupExt.pagination() ? paginate(respHits, from, size) : respHits
+                ext.pagination() ? paginate(respHits, from, size) : respHits
             );
 
         });
@@ -129,8 +122,6 @@ public class MergeScriptFilter implements ActionFilter {
     }
 
     private SearchHit[] paginate(SearchHit[] hits, int from, int size) {
-        final var logger = org.apache.logging.log4j.LogManager.getLogger();
-        logger.info("================= {} - {}", from, size);
         return from < hits.length ?
             Arrays.copyOfRange(hits, from, Math.min(from + size, hits.length)) :
             new SearchHit[0];
