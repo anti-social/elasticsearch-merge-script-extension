@@ -39,7 +39,7 @@ public class MergeScriptExtFilterIT extends ESIntegTestCase {
 
         var resp = rescoreSearchRequest().get();
         assertHitCount(resp, 6);
-        assertOrderedSearchHits(resp, "101", "201", "103", "304", "301", "204");
+        assertOrderedSearchHits(resp, "103", "101", "301", "201", "304", "204");
     }
 
     public void testMergeScriptWithPagination() throws IOException {
@@ -48,7 +48,7 @@ public class MergeScriptExtFilterIT extends ESIntegTestCase {
 
         var resp = rescoreSearchRequest(10_000, true, 2, 3).get();
         assertHitCount(resp, 6);
-        assertOrderedSearchHits(resp, "103", "304", "301");
+        assertOrderedSearchHits(resp, "301", "201", "304");
     }
 
     public void testMergeScriptWithPaginationOverflow() throws IOException {
@@ -66,7 +66,7 @@ public class MergeScriptExtFilterIT extends ESIntegTestCase {
 
         var resp = rescoreSearchRequest(10_000, false, 2, 3).get();
         assertHitCount(resp, 6);
-        assertOrderedSearchHits(resp, "101", "201", "103", "304", "301", "204");
+        assertOrderedSearchHits(resp, "103", "101", "301", "201", "304", "204");
     }
 
     private SearchRequestBuilder rescoreSearchRequest() {
@@ -90,7 +90,8 @@ public class MergeScriptExtFilterIT extends ESIntegTestCase {
                         List commonHits = new ArrayList();
                         List turboHits = new ArrayList();
                         for (SearchHit hit : hits) {
-                            def isTurbo = hit.field("is_turbo").booleanValueOrDefault(false);
+                            def isTurbo = hit.field("is_turbo").booleanValueOrDefault(false) ||
+                                hit.field("rank").floatValueOrDefault(0.0F) > 2.0F;
                             if (isTurbo) {
                                 turboHits.add(hit);
                             } else {
@@ -117,7 +118,7 @@ public class MergeScriptExtFilterIT extends ESIntegTestCase {
                     """,
                     Collections.emptyMap()
                 ),
-                List.of("is_turbo")
+                List.of("is_turbo", "rank")
             )
         );
     }

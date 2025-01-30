@@ -16,11 +16,21 @@ public final class DocumentFieldExt {
     }
 
     public static double doubleValueOrDefault(DocumentField hit, double defaultValue) {
-        Double value = DocumentFieldExt.doubleValue(hit);
+        Double value = doubleValue(hit);
         if (value == null) {
             return defaultValue;
         }
         return value;
+    }
+
+    public static Float floatValue(DocumentField hit) {
+        final var value = doubleValue(hit);
+        return value == null ? null : value.floatValue();
+    }
+
+    public static float floatValueOrDefault(DocumentField hit, float defaultValue) {
+        Double value = doubleValue(hit);
+        return value == null ? defaultValue : value.floatValue();
     }
 
     public static Long longValue(DocumentField hit) {
@@ -28,11 +38,21 @@ public final class DocumentFieldExt {
     }
 
     public static long longValueOrDefault(DocumentField hit, long defaultValue) {
-        Long value = DocumentFieldExt.longValue(hit);
+        Long value = longValue(hit);
         if (value == null) {
             return defaultValue;
         }
         return value;
+    }
+
+    public static Integer intValue(DocumentField hit) {
+        final var value = longValue(hit);
+        return value == null ? null : value.intValue();
+    }
+
+    public static int intValueOrDefault(DocumentField hit, int defaultValue) {
+        Long value = longValue(hit);
+        return value == null ? defaultValue : value.intValue();
     }
 
     public static Boolean booleanValue(DocumentField hit) {
@@ -40,7 +60,7 @@ public final class DocumentFieldExt {
     }
 
     public static boolean booleanValueOrDefault(DocumentField hit, boolean defaultValue) {
-        Boolean value = DocumentFieldExt.booleanValue(hit);
+        Boolean value = booleanValue(hit);
         if (value == null) {
             return defaultValue;
         }
@@ -52,7 +72,7 @@ public final class DocumentFieldExt {
     }
 
     public static String stringValueOrDefault(DocumentField hit, String defaultValue) {
-        String value = DocumentFieldExt.stringValue(hit);
+        String value = stringValue(hit);
         if (value == null) {
             return defaultValue;
         }
