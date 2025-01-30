@@ -12,6 +12,4 @@ object Versions {
     val project = versionProps["projectVersion"]!!.toString()
     val elasticsearch = versionProps["esVersion"]!!.toString()
     val plugin = versionProps["pluginVersion"]!!.toString()
-
-    val nebula = "9.1.1"
 }

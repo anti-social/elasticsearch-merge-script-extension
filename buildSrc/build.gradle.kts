@@ -9,6 +9,7 @@ plugins {
 }
 
 val defaultEsVersion = readVersion("es-default.version")
+val nebulaVersion = "9.1.1"
 
 val grgit = Grgit.open(mapOf("currentDir" to project.rootDir))
 val gitDescribe = grgit.describe(mapOf("match" to listOf("v*-es*"), "tags" to true))
@@ -92,6 +93,7 @@ idea {
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:1.5.30")
     implementation("org.elasticsearch.gradle:build-tools:${describe.esVersion()}")
+    implementation("com.netflix.nebula:gradle-ospackage-plugin:${nebulaVersion}")
     constraints {
         // Due to end of jCenter repository
         implementation("com.avast.gradle:gradle-docker-compose-plugin:0.14.2")
